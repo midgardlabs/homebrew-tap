@@ -1,0 +1,98 @@
+name: Test Homebrew Tap
+
+on:
+  pull_request:
+    paths:
+      - 'Casks/**'
+      - '.github/workflows/tests.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: homebrew-tap-tests-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fabre-cask:
+    name: Fabre Cask / audit and install
+    runs-on: macos-15
+    env:
+      HOMEBREW_NO_ANALYTICS: '1'
+      HOMEBREW_NO_AUTO_UPDATE: '1'
+      TAP_NAME: midgardlabs/tap
+      CASK_REFERENCE: midgardlabs/tap/fabre
+
+    steps:
+      - name: Checkout Tap candidate
+        uses: actions/checkout@v5
+
+      - name: Validate runner and Cask boundary
+        run: |
+          set -euo pipefail
+          if [ "$(uname -m)" != "arm64" ]; then
+            echo "Fabre currently publishes only the macOS ARM64 Cask." >&2
+            exit 1
+          fi
+          test -f Casks/fabre.rb
+          ruby -c Casks/fabre.rb
+          if grep -En 'github\.com/(MidgardLabs|midgardlabs)/fabre(["/])' Casks/fabre.rb; then
+            echo "The private Fabre source repository must not appear in a public Cask." >&2
+            exit 1
+          fi
+          grep -En 'homepage "https://fabre\.app/"' Casks/fabre.rb
+          grep -En 'args:[[:space:]]+\["--homebrew-cask"\]' Casks/fabre.rb
+          grep -En 'depends_on arch: :arm64' Casks/fabre.rb
+
+      - name: Tap pull request checkout
+        run: |
+          set -euo pipefail
+          brew tap "$TAP_NAME" "$GITHUB_WORKSPACE"
+
+      - name: Style and online audit
+        run: |
+          set -euo pipefail
+          tap_root="$(brew --repository "$TAP_NAME")"
+          brew style --cask "$tap_root/Casks/fabre.rb"
+          brew audit --cask --strict --online --tap="$TAP_NAME"
+
+      - name: Fetch and install public archive
+        run: |
+          set -euo pipefail
+          brew fetch --cask "$CASK_REFERENCE"
+          brew install --cask "$CASK_REFERENCE"
+
+      - name: Verify Gatekeeper and managed runtime mode
+        run: |
+          set -euo pipefail
+          command -v fabre
+          fabre paths > "$RUNNER_TEMP/fabre-paths.json"
+          python3 -c 'import json, pathlib, sys; value=json.loads(pathlib.Path(sys.argv[1]).read_text()); runtime=value["runtime"]; roots=runtime["roots"]; assert runtime["mode"] == "homebrew-cask"; assert roots["resource"]["origin"] == "portable-package"; assert roots["config"]["path"].endswith("/Library/Application Support/MidgardLabs/Fabre"); assert roots["state"]["path"].endswith("/Library/Application Support/MidgardLabs/Fabre")' "$RUNNER_TEMP/fabre-paths.json"
+          real_binary="$(find "$(brew --caskroom)/fabre" -type f -name fabre -perm +111 -print -quit)"
+          if [ -z "$real_binary" ]; then
+            echo "Unable to locate the installed Fabre binary." >&2
+            exit 1
+          fi
+          spctl --assess --type execute --verbose=4 "$real_binary"
+
+      - name: Verify ordinary uninstall and reinstall
+        run: |
+          set -euo pipefail
+          managed_root="$(python3 -c 'import json, pathlib, sys; value=json.loads(pathlib.Path(sys.argv[1]).read_text()); print(value["runtime"]["roots"]["config"]["path"])' "$RUNNER_TEMP/fabre-paths.json")"
+          mkdir -p "$managed_root"
+          sentinel="$managed_root/homebrew-tap-ci-sentinel"
+          printf '%s\n' "preserved" > "$sentinel"
+          brew uninstall --cask "$CASK_REFERENCE"
+          test -f "$sentinel"
+          brew install --cask "$CASK_REFERENCE"
+          test -f "$sentinel"
+          fabre paths > "$RUNNER_TEMP/fabre-paths-reinstalled.json"
+
+      - name: Clean up test installation
+        if: always()
+        run: |
+          if brew tap | grep -Fxq "$TAP_NAME"; then
+            brew uninstall --cask --force "$CASK_REFERENCE" || true
+            brew untap "$TAP_NAME" || true
+          fi
