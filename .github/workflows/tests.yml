@@ -28,6 +28,9 @@ jobs:
       - name: Checkout Tap candidate
         uses: actions/checkout@v5
 
+      - name: Update Homebrew for current Cask DSL
+        run: brew update
+
       - name: Validate runner and Cask boundary
         run: |
           set -euo pipefail
