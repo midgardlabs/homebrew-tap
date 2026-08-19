@@ -70,7 +70,7 @@ jobs:
         run: |
           set -euo pipefail
           command -v fabre
-          fabre paths > "$RUNNER_TEMP/fabre-paths.json"
+          fabre paths --format json > "$RUNNER_TEMP/fabre-paths.json"
           python3 -c 'import json, pathlib, sys; value=json.loads(pathlib.Path(sys.argv[1]).read_text()); runtime=value["runtime"]; roots=runtime["roots"]; assert runtime["mode"] == "homebrew-cask"; assert roots["resource"]["origin"] == "portable-package"; assert roots["config"]["path"].endswith("/Library/Application Support/MidgardLabs/Fabre"); assert roots["state"]["path"].endswith("/Library/Application Support/MidgardLabs/Fabre")' "$RUNNER_TEMP/fabre-paths.json"
           real_binary="$(find "$(brew --caskroom)/fabre" -type f -name fabre -perm +111 -print -quit)"
           if [ -z "$real_binary" ]; then
@@ -90,7 +90,7 @@ jobs:
           test -f "$sentinel"
           brew install --cask "$CASK_REFERENCE"
           test -f "$sentinel"
-          fabre paths > "$RUNNER_TEMP/fabre-paths-reinstalled.json"
+          fabre paths --format json > "$RUNNER_TEMP/fabre-paths-reinstalled.json"
 
       - name: Clean up test installation
         if: always()
