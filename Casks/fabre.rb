@@ -7,6 +7,10 @@ cask "fabre" do
   desc "Ragnarok Online server emulator"
   homepage "https://fabre.app/"
 
+  livecheck do
+    skip "Auto-generated on release"
+  end
+
   depends_on arch: :arm64
 
   command_wrapper "fabre",
