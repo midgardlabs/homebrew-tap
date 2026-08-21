@@ -66,19 +66,21 @@ jobs:
           brew fetch --cask "$CASK_REFERENCE"
           brew install --cask "$CASK_REFERENCE"
 
-      - name: Verify managed runtime mode
+      - name: Verify notarization ticket and managed runtime mode
         run: |
           set -euo pipefail
+          real_binary="$(find "$(brew --caskroom)/fabre" -type f -name fabre -perm +111 -print -quit)"
+          if [ -z "$real_binary" ]; then
+            echo "Unable to locate the installed Fabre binary." >&2
+            exit 1
+          fi
+          codesign --verify --strict --verbose=4 \
+            --check-notarization \
+            -R="notarized" \
+            "$real_binary"
           command -v fabre
           fabre paths --format json > "$RUNNER_TEMP/fabre-paths.json"
           python3 -c 'import json, pathlib, sys; value=json.loads(pathlib.Path(sys.argv[1]).read_text()); runtime=value["runtime"]; roots=runtime["roots"]; assert runtime["mode"] == "homebrew-cask"; assert roots["resource"]["origin"] == "portable-package"; assert roots["config"]["path"].endswith("/Library/Application Support/MidgardLabs/Fabre"); assert roots["state"]["path"].endswith("/Library/Application Support/MidgardLabs/Fabre")' "$RUNNER_TEMP/fabre-paths.json"
-          # Gatekeeper 验证待发布资产接入 Developer ID 签名与 Apple 公证后恢复。
-          # real_binary="$(find "$(brew --caskroom)/fabre" -type f -name fabre -perm +111 -print -quit)"
-          # if [ -z "$real_binary" ]; then
-          #   echo "Unable to locate the installed Fabre binary." >&2
-          #   exit 1
-          # fi
-          # spctl --assess --type execute --verbose=4 "$real_binary"
 
       - name: Verify ordinary uninstall and reinstall
         run: |
