@@ -1,17 +1,17 @@
-name: Test Homebrew Tap
+name: Validate Homebrew Tap Pull Request
 
 on:
   pull_request:
     paths:
       - 'Casks/**'
-      - '.github/workflows/tests.yml'
+      - '.github/workflows/pr-validation.yml'
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: homebrew-tap-tests-${{ github.event.pull_request.number || github.ref }}
+  group: homebrew-tap-pr-validation-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -48,10 +48,11 @@ jobs:
           grep -En 'args:[[:space:]]+\["--homebrew-cask"\]' Casks/fabre.rb
           grep -En 'depends_on arch: :arm64' Casks/fabre.rb
 
-      - name: Tap pull request checkout
+      - name: Tap and trust pull request checkout
         run: |
           set -euo pipefail
           brew tap "$TAP_NAME" "$GITHUB_WORKSPACE"
+          brew trust --tap "$TAP_NAME"
 
       - name: Style and online audit
         run: |
@@ -100,5 +101,6 @@ jobs:
         run: |
           if brew tap | grep -Fxq "$TAP_NAME"; then
             brew uninstall --cask --force "$CASK_REFERENCE" || true
+            brew untrust --tap "$TAP_NAME" || true
             brew untap "$TAP_NAME" || true
           fi
