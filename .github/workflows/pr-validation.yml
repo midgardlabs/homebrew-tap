@@ -70,9 +70,22 @@ jobs:
       - name: Verify notarization ticket and managed runtime mode
         run: |
           set -euo pipefail
-          real_binary="$(find "$(brew --caskroom)/fabre" -type f -name fabre -perm +111 -print -quit)"
+          cask_root="$(brew --caskroom)/fabre"
+          real_binary="$(
+            find "$cask_root" \
+              -type f \
+              -name fabre \
+              -perm +111 \
+              ! -path '*/.homebrew-command-wrappers/*' \
+              -print \
+              -quit
+          )"
           if [ -z "$real_binary" ]; then
             echo "Unable to locate the installed Fabre binary." >&2
+            exit 1
+          fi
+          if [[ "$real_binary" == */.homebrew-command-wrappers/* ]]; then
+            echo "Refusing to verify Homebrew's unsigned command wrapper." >&2
             exit 1
           fi
           codesign --verify --strict --verbose=4 \
