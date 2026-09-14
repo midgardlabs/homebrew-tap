@@ -7,6 +7,7 @@ This is the public third-party Homebrew Tap for MidgardLabs software. It is not 
 After the first stable Cask is published:
 
 ```bash
+brew trust --cask midgardlabs/tap/fabre
 brew tap midgardlabs/tap
 brew install --cask midgardlabs/tap/fabre
 ```
@@ -33,4 +34,4 @@ Casks live in the top-level `Casks/` directory required by Homebrew. Automated r
 
 The Gatekeeper check validates the installed executable itself with strict code-signature verification and Apple's online notarization-ticket requirement. This is suitable for Fabre's command-line Mach-O binary; it does not rely on `spctl` treating the executable as an application bundle.
 
-Pull requests that change a Cask or its validation workflow run `.github/workflows/pr-validation.yml`. The ephemeral runner explicitly trusts this repository's Tap before loading the candidate Cask, then removes that trust during cleanup.
+Pull requests that change a Cask or its validation workflow run `.github/workflows/pr-validation.yml`. The ephemeral runner explicitly trusts the Fabre Cask before tapping the candidate checkout, then removes that trust during cleanup.
