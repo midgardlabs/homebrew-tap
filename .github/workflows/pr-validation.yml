@@ -48,11 +48,11 @@ jobs:
           grep -En 'args:[[:space:]]+\["--homebrew-cask"\]' Casks/fabre.rb
           grep -En 'depends_on arch: :arm64' Casks/fabre.rb
 
-      - name: Tap and trust pull request checkout
+      - name: Trust Cask and tap pull request checkout
         run: |
           set -euo pipefail
+          brew trust --cask "$CASK_REFERENCE"
           brew tap "$TAP_NAME" "$GITHUB_WORKSPACE"
-          brew trust --tap "$TAP_NAME"
 
       - name: Style and online audit
         run: |
@@ -114,6 +114,8 @@ jobs:
         run: |
           if brew tap | grep -Fxq "$TAP_NAME"; then
             brew uninstall --cask --force "$CASK_REFERENCE" || true
-            brew untrust --tap "$TAP_NAME" || true
-            brew untap "$TAP_NAME" || true
+          fi
+          brew untrust --cask "$CASK_REFERENCE"
+          if brew tap | grep -Fxq "$TAP_NAME"; then
+            brew untap "$TAP_NAME"
           fi
