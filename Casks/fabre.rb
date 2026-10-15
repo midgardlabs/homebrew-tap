@@ -1,6 +1,6 @@
 cask "fabre" do
-  version "0.83.0"
-  sha256 "fc33b8927155bb09c1d47eb93c99d20e64eb988367e81fe9b123e54bb0f8bc2b"
+  version "0.84.0"
+  sha256 "9e0a3bbd550506f0d5d52e8510f270f07544401f44c537fff1a1333d04c8e794"
 
   url "https://releases.fabre.app/v#{version}/fabre-v#{version}-macos-arm64.tar.gz"
   name "Fabre"
